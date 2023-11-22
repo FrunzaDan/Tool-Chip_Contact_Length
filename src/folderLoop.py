@@ -2,14 +2,16 @@ import os
 import traceback
 import processImage
 
+input_dataset_folder = os.path.join(os.getcwd(), "Input/Complete_Dataset/")
+output_hough_results_folder = os.path.join(os.getcwd(), "Output/folder_hough_results/")
+output_plot_results_folder = os.path.join(os.getcwd(), "Output/folder_plot_results/")
 
 def loop_folder_function():
-    dataset_folder = os.getcwd() + "/Input/Complete_Dataset/"
-    print('The DataSet Folder is: ' + dataset_folder)
+    print('The input_dataset_folder is: ' + input_dataset_folder)
     current_image_number = 1
-    for current_image_name in sorted(os.listdir(dataset_folder)):
+    for current_image_name in sorted(os.listdir(input_dataset_folder)):
         # Folder loop:
-        current_image_path = os.path.join(dataset_folder, current_image_name)
+        current_image_path = os.path.join(input_dataset_folder, current_image_name)
         print("currentImage is: " + current_image_path)
         if (current_image_name.endswith(".bmp")):
             print("The nr. " + str(current_image_number) +

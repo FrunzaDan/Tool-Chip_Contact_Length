@@ -1,7 +1,6 @@
 from PIL import Image
-import numpy as np
 import io
-import os
+import folderLoop
 from matplotlib import pyplot as plt
 
 
@@ -34,10 +33,8 @@ def plot_images(current_resize_image_plot, otsu_thresholded_image, morph_closed_
 
         img_buf = io.BytesIO()
         plt.savefig(img_buf, format='png')
-
         im = Image.open(img_buf)
-        output_plot_results_folder = os.getcwd() + "/Output/folder_plot_results/"
-        output_folder_path = output_plot_results_folder + current_image_name
+        output_folder_path = folderLoop.output_plot_results_folder + current_image_name
         im.save(output_folder_path)
         img_buf.close()
         print("- saved plot image: " + output_folder_path)

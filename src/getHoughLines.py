@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
-import os
 import math
 import randomColor
+import folderLoop
 
 
 def get_hough_lines_function(current_canny_image, original_Image, votes_valid_line, min_line_length, max_line_gap, current_image_name, current_Image_Number):
@@ -143,8 +143,8 @@ def get_horizontal_line_Y_index(cleaned_lines, current_canny_image, blank_image,
 
 
 def save_images(current_image_name, saved_hough_image, contact_length):
-    output_hough_results_folder = os.getcwd() + "/Output/folder_hough_results/"
-    output_folder_path = output_hough_results_folder + current_image_name
+    
+    output_folder_path = folderLoop.output_hough_results_folder + current_image_name
     color_contact_length = randomColor.color_line()
     saved_hough_image = cv2.putText(saved_hough_image, "Dist = " + str(
         contact_length) + "px + t", (100, 100),  cv2.FONT_HERSHEY_SIMPLEX, 1.2, color_contact_length, 3, cv2.LINE_AA)

@@ -1,37 +1,38 @@
 import cv2
+import cv2.mat_wrapper
 import numpy as np
 import math
 import randomColor
 import folderLoop
 
 
-def get_hough_lines_function(current_canny_image, original_Image, votes_valid_line, min_line_length, max_line_gap, current_image_name):
+def get_hough_lines_function(current_canny_image:np.ndarray, original_Image, votes_valid_line, min_line_length, max_line_gap, current_image_name) -> np.ndarray:
     original_image_copy = original_Image
     blank_image = np.zeros(
         (current_canny_image.shape[0], current_canny_image.shape[1], 3), np.uint8)
     hough_image_plot = blank_image.copy()
 
     # process:
-    houghLines = define_hough_lines(
+    houghLines: cv2.typing.MatLike = define_hough_lines(
         current_canny_image, votes_valid_line, min_line_length, max_line_gap, hough_image_plot)
-    cleaned_lines = clean_lines(houghLines)
+    cleaned_lines: cv2.typing.MatLike = clean_lines(houghLines)
 
     # calculate the tool-chip contact length (difference between the 2 lines):
     try:
-        tuple_result_horizontal = get_horizontal_line_Y_index(cleaned_lines, original_image_copy)
-        tuple_result_vertical = get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image_copy)
+        tuple_result_horizontal: tuple | None = get_horizontal_line_Y_index(cleaned_lines, original_image_copy)
+        tuple_result_vertical: tuple | None = get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image_copy)
         if tuple_result_horizontal is None:
             print("Y Points not found on horizontal line!")
         elif tuple_result_vertical is None:
             print("Y Points not found on vertical line!")
         else:
-            y_point_of_horizontal = tuple_result_horizontal[0]
-            y_point_of_vertical = tuple_result_vertical[0]
+            y_point_of_horizontal: float = tuple_result_horizontal[0]
+            y_point_of_vertical: float = tuple_result_vertical[0]
             saved_hough_image = tuple_result_horizontal[1]
             if saved_hough_image is None:
                 saved_hough_image = tuple_result_vertical[1]
 
-            contact_length = y_point_of_horizontal - y_point_of_vertical
+            contact_length: float = y_point_of_horizontal - y_point_of_vertical
 
             save_images(current_image_name, saved_hough_image, contact_length)
 
@@ -42,10 +43,10 @@ def get_hough_lines_function(current_canny_image, original_Image, votes_valid_li
     return hough_image_plot
 
 
-def define_hough_lines(current_canny_image, votes_valid_line, min_line_length, max_line_gap, hough_lines_plot):
+def define_hough_lines(current_canny_image, votes_valid_line, min_line_length, max_line_gap, hough_lines_plot)-> cv2.typing.MatLike:
     current_canny_image = cv2.cvtColor(current_canny_image, cv2.COLOR_BGR2GRAY)
     current_canny_image = cv2.GaussianBlur(current_canny_image, (3, 3), 1)
-    hough_lines = cv2.HoughLinesP(
+    hough_lines:cv2.typing.MatLike = cv2.HoughLinesP(
         current_canny_image, 1, np.pi/180, votes_valid_line, None, min_line_length, max_line_gap)
     for hough_line in hough_lines:
         x1, y1, x2, y2 = hough_line[0]
@@ -53,18 +54,18 @@ def define_hough_lines(current_canny_image, votes_valid_line, min_line_length, m
     return hough_lines
 
 
-def clean_lines(hough_lines):
+def clean_lines(hough_lines: cv2.typing.MatLike) -> cv2.typing.MatLike:
     # line cleanup:
-    cleaned_Lines = np.empty(shape=[0, 4], dtype=np.int32)
+    cleaned_Lines: cv2.typing.MatLike = np.empty(shape=[0, 4], dtype=np.int32)
     for houghLine in hough_lines:
-        alfa = math.degrees(math.atan2(
+        alfa: float = math.degrees(math.atan2(
             houghLine[0][2]-houghLine[0][0], houghLine[0][3]-houghLine[0][1]))
         if len(cleaned_Lines) == 0:
             cleaned_Lines = np.append(cleaned_Lines, [houghLine[0]], axis=0)
             continue
         similar = False
         for cleaned_Line in cleaned_Lines:
-            beta = math.degrees(math.atan2(
+            beta: float = math.degrees(math.atan2(
                 cleaned_Line[2]-cleaned_Line[0], cleaned_Line[3]-cleaned_Line[1]))
             if abs(alfa-beta) <= 4.5:
                 similar = True
@@ -74,8 +75,8 @@ def clean_lines(hough_lines):
     return cleaned_Lines
 
 
-def get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image_copy):
-    color_vertical = randomColor.color_line()
+def get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image_copy)-> tuple | None:
+    color_vertical: tuple[int, int, int] = randomColor.color_line()
     for line in [cleaned_lines]:
         for x1, y1, x2, y2 in line:
             # VERTICAL:
@@ -101,8 +102,8 @@ def get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image
             pass
 
 
-def get_horizontal_line_Y_index(cleaned_lines, original_image_copy):
-    color_horizontal = randomColor.color_line()
+def get_horizontal_line_Y_index(cleaned_lines, original_image_copy)-> tuple | None:
+    color_horizontal: tuple[int, int, int] = randomColor.color_line()
     for line in [cleaned_lines]:
         for x1, y1, x2, y2 in line:
             # HORIZONTAL:
@@ -140,10 +141,10 @@ def get_horizontal_line_Y_index(cleaned_lines, original_image_copy):
             pass
 
 
-def save_images(current_image_name, saved_hough_image, contact_length):
-    
-    output_folder_path = folderLoop.output_hough_results_folder + current_image_name
-    color_contact_length = randomColor.color_line()
+def save_images(current_image_name: str, saved_hough_image: cv2.typing.MatLike, contact_length: float) -> None:
+
+    output_folder_path: str = folderLoop.output_hough_results_folder + current_image_name
+    color_contact_length: tuple[int, int, int] = randomColor.color_line()
     saved_hough_image = cv2.putText(saved_hough_image, "Dist = " + str(
         contact_length) + "px + t", (100, 100),  cv2.FONT_HERSHEY_SIMPLEX, 1.2, color_contact_length, 3, cv2.LINE_AA)
     cv2.imwrite(output_folder_path, saved_hough_image)

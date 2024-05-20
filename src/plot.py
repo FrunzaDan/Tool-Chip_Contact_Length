@@ -1,10 +1,8 @@
-from PIL import Image
-import io
 import folderLoop
 from matplotlib import pyplot as plt
 
 
-def plot_images(current_resize_image_plot, otsu_thresholded_image, morph_closed_image, dilated_image, canny_edges_image, hough_image_plot, current_image_name):
+def plot_images(current_resize_image_plot, otsu_thresholded_image, morph_closed_image, dilated_image, canny_edges_image, hough_image_plot, current_image_name) -> None:
     # Plotting:
     can_plot = True
     if can_plot:
@@ -22,17 +20,17 @@ def plot_images(current_resize_image_plot, otsu_thresholded_image, morph_closed_
         plt.title("HOUGH LINES"), plt.xticks([]), plt.yticks([])
 
         # visualize:
-        fig = plt.gcf()
+        fig: plt.Figure = plt.gcf()
         fig.canvas.manager.set_window_title(current_image_name)
         fig.suptitle(current_image_name, fontsize=14)
         plt.tight_layout()
 
         # Save the plot directly to disk (no memory buffer)
         try:
-            output_folder_path = folderLoop.output_plot_results_folder + current_image_name
+            output_folder_path: str = folderLoop.output_plot_results_folder + current_image_name
             plt.savefig(output_folder_path, format='png')
             print("- saved plot image: " + output_folder_path)
         except Exception as e:
             print(f"Error saving plot image: {e}")
 
-        plt.close(fig)  # Close the figure after saving
+        plt.close(fig)

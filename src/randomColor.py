@@ -1,7 +1,12 @@
 import random
 
+MIN_VALUE = 120
+MAX_VALUE = 255
 
 def color_line():
-    random_line_color = (int(random.randint(30, 255)), int(
-        random.randint(40, 255)), int(random.randint(50, 255)))
+    random_line_color = (
+        int(random.randint(MIN_VALUE, MAX_VALUE)),
+        int(random.randint(MIN_VALUE, MAX_VALUE)),
+        int(random.randint(MIN_VALUE, MAX_VALUE)),
+    )
     return random_line_color

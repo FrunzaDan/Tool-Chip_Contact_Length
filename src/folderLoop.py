@@ -2,11 +2,9 @@ import os
 import traceback
 import processImage
 
-input_subpath = os.path.join("Input", "Complete_Dataset")
-
-input_dataset_folder = os.path.join(os.getcwd(), input_subpath)
-output_hough_results_folder = os.path.join(os.getcwd(), "Output/folder_hough_results/")
-output_plot_results_folder = os.path.join(os.getcwd(), "Output/folder_plot_results/")
+input_dataset_folder = os.path.join("Input", "Complete_Dataset")
+output_hough_results_folder = os.path.join("Output", "folder_hough_results/")
+output_plot_results_folder = os.path.join("Output", "folder_plot_results/")
 
 def loop_folder_function():
     print('The input_dataset_folder is: ' + input_dataset_folder)

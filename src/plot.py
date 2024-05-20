@@ -26,15 +26,13 @@ def plot_images(current_resize_image_plot, otsu_thresholded_image, morph_closed_
         fig.canvas.manager.set_window_title(current_image_name)
         fig.suptitle(current_image_name, fontsize=14)
         plt.tight_layout()
-        plt.draw()
-        # # closes figure when user left clicks:
-        # plt.waitforbuttonpress(20)
-        # plt.close(fig)
 
-        img_buf = io.BytesIO()
-        plt.savefig(img_buf, format='png')
-        im = Image.open(img_buf)
-        output_folder_path = folderLoop.output_plot_results_folder + current_image_name
-        im.save(output_folder_path)
-        img_buf.close()
-        print("- saved plot image: " + output_folder_path)
+        # Save the plot directly to disk (no memory buffer)
+        try:
+            output_folder_path = folderLoop.output_plot_results_folder + current_image_name
+            plt.savefig(output_folder_path, format='png')
+            print("- saved plot image: " + output_folder_path)
+        except Exception as e:
+            print(f"Error saving plot image: {e}")
+
+        plt.close(fig)  # Close the figure after saving

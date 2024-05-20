@@ -6,7 +6,7 @@ import getHoughLines
 import plot
 
 
-def process_this_image_function(current_image_path, current_image_name, current_image_number):
+def process_this_image_function(current_image_path, current_image_name):
     if current_image_path:
         # reads the image:
         try:
@@ -65,7 +65,7 @@ def process_this_image_function(current_image_path, current_image_name, current_
         # HoughP Transform:
         try:
             hough_image_plot = getHoughLines.get_hough_lines_function(
-                canny_edges_image, current_cropped_image_plot, 90, 90, 80, current_image_name, current_image_number)
+                canny_edges_image, current_cropped_image_plot, 90, 90, 80, current_image_name)
         except cv2.error as hough_error:
             print("Hough Error at " + current_image_name + ": " + str(hough_error))
         # Plotting:

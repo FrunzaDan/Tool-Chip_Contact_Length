@@ -20,7 +20,7 @@ def loop_folder_function():
                   " current image is: " + current_image_path)
             try:
                 processImage.process_this_image_function(
-                    current_image_path, current_image_name, current_image_number)
+                    current_image_path, current_image_name)
             except Exception as processing_exception:
                 print("(!) EXCEPTION AT IMAGE PROCESSING: " + str(processing_exception))
                 print("(!) TRACEBACK: " + traceback.format_exc())

@@ -5,7 +5,7 @@ import randomColor
 import folderLoop
 
 
-def get_hough_lines_function(current_canny_image, original_Image, votes_valid_line, min_line_length, max_line_gap, current_image_name, current_Image_Number):
+def get_hough_lines_function(current_canny_image, original_Image, votes_valid_line, min_line_length, max_line_gap, current_image_name):
     original_image_copy = original_Image
     blank_image = np.zeros(
         (current_canny_image.shape[0], current_canny_image.shape[1], 3), np.uint8)
@@ -18,10 +18,8 @@ def get_hough_lines_function(current_canny_image, original_Image, votes_valid_li
 
     # calculate the tool-chip contact length (difference between the 2 lines):
     try:
-        tuple_result_horizontal = get_horizontal_line_Y_index(cleaned_lines, current_canny_image,
-                                                              blank_image, original_image_copy)
-        tuple_result_vertical = get_vertical_line_Y_index(cleaned_lines, current_canny_image,
-                                                          blank_image, original_image_copy)
+        tuple_result_horizontal = get_horizontal_line_Y_index(cleaned_lines, original_image_copy)
+        tuple_result_vertical = get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image_copy)
         if tuple_result_horizontal is None:
             print("Y Points not found on horizontal line!")
         elif tuple_result_vertical is None:
@@ -76,7 +74,7 @@ def clean_lines(hough_lines):
     return cleaned_Lines
 
 
-def get_vertical_line_Y_index(cleaned_lines, current_canny_image, blank_image, original_image_copy):
+def get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image_copy):
     color_vertical = randomColor.color_line()
     for line in [cleaned_lines]:
         for x1, y1, x2, y2 in line:
@@ -103,7 +101,7 @@ def get_vertical_line_Y_index(cleaned_lines, current_canny_image, blank_image, o
             pass
 
 
-def get_horizontal_line_Y_index(cleaned_lines, current_canny_image, blank_image, original_image_copy):
+def get_horizontal_line_Y_index(cleaned_lines, original_image_copy):
     color_horizontal = randomColor.color_line()
     for line in [cleaned_lines]:
         for x1, y1, x2, y2 in line:

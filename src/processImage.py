@@ -6,7 +6,7 @@ import getHoughLines
 import plot
 
 
-def process_this_image_function(current_image_path, current_image_name) -> None:
+def process_this_image_function(current_image_path: str, current_image_name: str) -> None:
     if current_image_path:
         # reads the image:
         try:

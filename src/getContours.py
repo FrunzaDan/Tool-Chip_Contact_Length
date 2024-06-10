@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-def get_Contours_Function(dilation_img: np.ndarray, threshold_1, threshold_2, kernel_size) -> np.ndarray | None:
+def get_Contours_Function(dilation_img: cv2.typing.MatLike, threshold_1: float, threshold_2: float, kernel_size: float) -> cv2.typing.MatLike | None:
     if ((dilation_img is None)):
         print("No valid Dilation Image")
     else:

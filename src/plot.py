@@ -2,28 +2,26 @@ import folderLoop
 from matplotlib import pyplot as plt
 
 
+def create_subplot(image, title):
+    plt.imshow(image, 'gray' if len(image.shape) == 2 else None)
+    plt.title(title), plt.xticks([]), plt.yticks([])
+
+
 def plot_images(current_resize_image_plot, otsu_thresholded_image, morph_closed_image,
                 dilated_image, canny_edges_image, hough_image_plot, current_image_name) -> None:
 
     # Plotting:
-    plt.subplot(231), plt.imshow(current_resize_image_plot)
-    plt.title("Original"), plt.xticks([]), plt.yticks([])
-    plt.subplot(232), plt.imshow(otsu_thresholded_image, 'gray')
-    plt.title("OTSU BINARY"), plt.xticks([]), plt.yticks([])
-    plt.subplot(233), plt.imshow(morph_closed_image, 'gray')
-    plt.title("MORPH CLOSING: 4x4"), plt.xticks([]), plt.yticks([])
-    plt.subplot(234), plt.imshow(dilated_image, 'gray')
-    plt.title("DILATION: 3x3"), plt.xticks([]), plt.yticks([])
-    plt.subplot(235), plt.imshow(canny_edges_image, 'gray')
-    plt.title("CANNY"), plt.xticks([]), plt.yticks([])
-    plt.subplot(236), plt.imshow(hough_image_plot)
-    plt.title("HOUGH LINES"), plt.xticks([]), plt.yticks([])
+    plt.subplot(231), create_subplot(current_resize_image_plot, "Original")
+    plt.subplot(232), create_subplot(otsu_thresholded_image, "OTSU BINARY")
+    plt.subplot(233), create_subplot(morph_closed_image, "MORPH CLOSING: 4x4")
+    plt.subplot(234), create_subplot(dilated_image, "DILATION: 3x3")
+    plt.subplot(235), create_subplot(canny_edges_image, "CANNY")
+    plt.subplot(236), create_subplot(hough_image_plot, "HOUGH LINES")
 
     # Visualize:
     plt.suptitle(current_image_name, fontsize=16)
     plt.tight_layout()
 
-    # Save the plot directly to disk (no memory buffer)
     try:
         output_folder_path: str = folderLoop.output_plot_results_folder + current_image_name
         plt.savefig(output_folder_path, format='png')

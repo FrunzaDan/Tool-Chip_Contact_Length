@@ -1,6 +1,7 @@
 {
   "python.analysis.inlayHints.functionReturnTypes": true,
   "python.analysis.inlayHints.variableTypes": true,
+  "python.formatting.provider": "black",
   "editor.formatOnSave": true,
   "editor.formatOnType": true
 }

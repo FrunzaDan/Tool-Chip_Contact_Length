@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install Python Dependencies",
+      "type": "shell",
+      "command": "pip3 install -r ${workspaceFolder}/requirements.txt",
+      "group": "build",
+      "detail": "Installs Python packages from requirements.txt",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Clean Python Project",
+      "type": "shell",
+      "command": "echo 'Cleaning up...' && rm -rf ${workspaceFolder}/.pytest_cache",
+      "group": "none",
+      "detail": "Removes test cache and other temporary files",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Format with Black",
+      "type": "shell",
+      "command": "black ${workspaceFolder}/src",
+      "group": "build",
+      "detail": "Formats Python code in /src with Black",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

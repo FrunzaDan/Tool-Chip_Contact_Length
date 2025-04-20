@@ -6,7 +6,13 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/src/main.py",
-      "console": "integratedTerminal"
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/src",
+      "justMyCode": true,
+      "preLaunchTask": "Install Python Dependencies",
+      "postDebugTask": "Clean Python Project",
+      "envFile": "${workspaceFolder}/.env",
+      "args": []
     }
   ]
 }

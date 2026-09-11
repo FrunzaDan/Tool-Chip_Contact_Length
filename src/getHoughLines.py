@@ -6,62 +6,71 @@ import randomColor
 import folderLoop
 from logging_config import logger
 
+# Line-classification thresholds.
+ANGLE_SIMILARITY_THRESHOLD_DEGREES = 4.5
+VERTICAL_LINE_MAX_DX = 4
+HORIZONTAL_LINE_MAX_DY = 10
+
+# Annotation drawing constants.
+LINE_THICKNESS = 3
+MARKER_RADIUS = 10
+MARKER_THICKNESS = 2
+FONT_SCALE = 1.2
+FONT_THICKNESS = 3
+
 
 def get_hough_lines_function(
     current_canny_image: cv2.typing.MatLike,
-    original_Image,
-    votes_valid_line,
-    min_line_length,
-    max_line_gap,
-    current_image_name,
+    original_image: cv2.typing.MatLike,
+    votes_valid_line: int,
+    min_line_length: int,
+    max_line_gap: int,
+    current_image_name: str,
 ) -> cv2.typing.MatLike:
-    original_image_copy: cv2.typing.MatLike = original_Image
+    # NOTE: this function draws directly onto (mutates) `original_image` as
+    # part of computing the contact length - it is not treated as read-only.
     blank_image: np.ndarray = np.zeros(
         (current_canny_image.shape[0], current_canny_image.shape[1], 3), np.uint8
     )
     hough_image_plot: np.ndarray = blank_image.copy()
 
-    # process:
-    houghLines: cv2.typing.MatLike | None = define_hough_lines(
+    hough_lines: cv2.typing.MatLike | None = define_hough_lines(
         current_canny_image,
         votes_valid_line,
         min_line_length,
         max_line_gap,
         hough_image_plot,
     )
-    if houghLines is None:
+    if hough_lines is None:
         logger.warning(
             f"No Hough lines detected for {current_image_name}; "
             "skipping contact-length calculation."
         )
         return hough_image_plot
 
-    cleaned_lines: cv2.typing.MatLike = clean_lines(houghLines)
+    cleaned_lines: cv2.typing.MatLike = clean_lines(hough_lines)
 
     # calculate the tool-chip contact length (difference between the 2 lines):
     try:
-        tuple_result_horizontal: tuple[int, cv2.typing.MatLike] | None = (
-            get_horizontal_line_Y_index(cleaned_lines, original_image_copy)
+        horizontal_result: tuple[int, cv2.typing.MatLike] | None = (
+            get_horizontal_line_Y_index(cleaned_lines, original_image)
         )
-        tuple_result_vertical: tuple[int, cv2.typing.MatLike] | None = (
-            get_vertical_line_Y_index(
-                cleaned_lines, current_canny_image, original_image_copy
-            )
+        vertical_result: tuple[int, cv2.typing.MatLike] | None = (
+            get_vertical_line_Y_index(cleaned_lines, current_canny_image, original_image)
         )
-        if tuple_result_horizontal is None:
+        if horizontal_result is None:
             logger.warning("Y Points not found on horizontal line!")
-        elif tuple_result_vertical is None:
+        elif vertical_result is None:
             logger.warning("Y Points not found on vertical line!")
         else:
-            y_point_of_horizontal: int = tuple_result_horizontal[0]
-            y_point_of_vertical: int = tuple_result_vertical[0]
-            saved_hough_image: cv2.typing.MatLike = tuple_result_horizontal[1]
-            if saved_hough_image is None:
-                saved_hough_image = tuple_result_vertical[1]
+            # Both results reference the same (mutated) `original_image`, so
+            # either one already carries both annotations.
+            y_point_of_horizontal, annotated_image = horizontal_result
+            y_point_of_vertical, _ = vertical_result
 
             contact_length: int = y_point_of_horizontal - y_point_of_vertical
 
-            save_result_image(current_image_name, saved_hough_image, contact_length)
+            save_result_image(current_image_name, annotated_image, contact_length)
 
     except cv2.error as error:
         logger.warning(f"Not computable! OpenCV error: {error}")
@@ -70,11 +79,11 @@ def get_hough_lines_function(
 
 
 def define_hough_lines(
-    current_canny_image,
-    votes_valid_line,
-    min_line_length,
-    max_line_gap,
-    hough_lines_plot,
+    current_canny_image: cv2.typing.MatLike,
+    votes_valid_line: int,
+    min_line_length: int,
+    max_line_gap: int,
+    hough_lines_plot: cv2.typing.MatLike,
 ) -> cv2.typing.MatLike | None:
     current_canny_image: cv2.typing.MatLike = cv2.cvtColor(
         current_canny_image, cv2.COLOR_BGR2GRAY
@@ -99,252 +108,143 @@ def define_hough_lines(
 
 
 def clean_lines(hough_lines: cv2.typing.MatLike) -> cv2.typing.MatLike:
-    # line cleanup:
-    cleaned_Lines: cv2.typing.MatLike = np.empty(shape=[0, 4], dtype=np.int32)
-    for houghLine in hough_lines:
-        alfa: int = math.degrees(
-            math.atan2(
-                houghLine[0][2] - houghLine[0][0], houghLine[0][3] - houghLine[0][1]
-            )
+    """Collapse near-duplicate Hough line segments, keeping one line per distinct angle."""
+    cleaned_lines: list[tuple[int, int, int, int]] = []
+    for hough_line in hough_lines:
+        x1, y1, x2, y2 = hough_line[0]
+        angle = math.degrees(math.atan2(x2 - x1, y2 - y1))
+        is_duplicate_angle = any(
+            abs(angle - math.degrees(math.atan2(cx2 - cx1, cy2 - cy1)))
+            <= ANGLE_SIMILARITY_THRESHOLD_DEGREES
+            for cx1, cy1, cx2, cy2 in cleaned_lines
         )
-        if len(cleaned_Lines) == 0:
-            cleaned_Lines = np.append(cleaned_Lines, [houghLine[0]], axis=0)
-            continue
-        similar = False
-        for cleaned_Line in cleaned_Lines:
-            beta: int = math.degrees(
-                math.atan2(
-                    cleaned_Line[2] - cleaned_Line[0], cleaned_Line[3] - cleaned_Line[1]
-                )
-            )
-            if abs(alfa - beta) <= 4.5:
-                similar = True
-                break
-        if not similar:
-            cleaned_Lines = np.append(cleaned_Lines, [houghLine[0]], axis=0)
-    return cleaned_Lines
+        if not is_duplicate_angle:
+            cleaned_lines.append((x1, y1, x2, y2))
+
+    if not cleaned_lines:
+        return np.empty((0, 4), dtype=np.int32)
+    return np.array(cleaned_lines, dtype=np.int32)
+
+
+def _draw_point_label(
+    image: cv2.typing.MatLike,
+    marker_point: tuple[int, int],
+    text_point: tuple[int, int],
+    label: str,
+    value: int,
+    color: tuple[int, int, int],
+) -> None:
+    """Draw a labeled circle marker at marker_point, with the label's text at
+    text_point (the two can differ - see callers). Mutates image in place."""
+    cv2.putText(
+        image,
+        f"{label}: {value}",
+        text_point,
+        cv2.FONT_HERSHEY_SIMPLEX,
+        FONT_SCALE,
+        color,
+        FONT_THICKNESS,
+        cv2.LINE_AA,
+    )
+    cv2.circle(
+        image,
+        marker_point,
+        MARKER_RADIUS,
+        color,
+        thickness=MARKER_THICKNESS,
+        lineType=8,
+        shift=0,
+    )
 
 
 def get_vertical_line_Y_index(
     cleaned_lines: cv2.typing.MatLike,
     current_canny_image: cv2.typing.MatLike,
-    original_image_copy: cv2.typing.MatLike,
+    image: cv2.typing.MatLike,
 ) -> tuple[int, cv2.typing.MatLike] | None:
-    color_vertical: tuple[int, int, int] = randomColor.color_line()
-    for line in [cleaned_lines]:
-        for x1, y1, x2, y2 in line:
-            # VERTICAL:
-            # NOTE: these thresholds intentionally compare x-coordinates against
-            # shape[0] and y/x against shape[1], which looks like a height/width
-            # mix-up at a glance. It was tested against the real dataset: "fixing"
-            # it to the dimensionally "correct" shape[1]/shape[0] rejects the
-            # actual tool edge (which sits in the upper portion of the cropped
-            # frame) and regresses detection. Left as the original, empirically
-            # working thresholds — only the redundant `x1 > ... or x1 > ...`
-            # no-op has been fixed to also check `x2`.
-            if (
-                (abs(x1 - x2) < 4)
-                and (
-                    (x1 > current_canny_image.shape[0] / 2)
-                    or (x2 > current_canny_image.shape[0] / 2)
-                )
-                and (
-                    (y1 > current_canny_image.shape[1] / 2)
-                    or (x2 > current_canny_image.shape[1] / 2)
-                )
-            ):
-                # choose only lowest y point of line:
-                if y2 > y1:
-                    cv2.putText(
-                        original_image_copy,
-                        "Y2: " + str(y2),
-                        (x2 - 150, y2 + 40),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2,
-                        color_vertical,
-                        3,
-                        cv2.LINE_AA,
-                    )
-                    y_point_of_vertical: int = y2
-                    saved_hough_image: cv2.typing.MatLike = cv2.line(
-                        original_image_copy, (x1, y1), (x2, y2), color_vertical, 3
-                    )
-                    saved_hough_image = cv2.circle(
-                        saved_hough_image,
-                        (x2, y2),
-                        10,
-                        color_vertical,
-                        thickness=2,
-                        lineType=8,
-                        shift=0,
-                    )
-                else:
-                    y_point_of_vertical: int = y1
-                    cv2.putText(
-                        original_image_copy,
-                        "Y1: " + str(y1),
-                        (x1 - 150, y1 + 40),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2,
-                        color_vertical,
-                        3,
-                        cv2.LINE_AA,
-                    )
-                    saved_hough_image: cv2.typing.MatLike = cv2.line(
-                        original_image_copy, (x1, y1), (x2, y2), color_vertical, 3
-                    )
-                    saved_hough_image = cv2.circle(
-                        saved_hough_image,
-                        (x1, y1),
-                        10,
-                        color_vertical,
-                        thickness=2,
-                        lineType=8,
-                        shift=0,
-                    )
-                return (y_point_of_vertical, saved_hough_image)
-            pass
+    color: tuple[int, int, int] = randomColor.color_line()
+
+    # NOTE: threshold_a is compared against x-coordinates and threshold_b
+    # against y/x-coordinates, using shape[0] (height) and shape[1] (width)
+    # respectively - this looks like a height/width mix-up at a glance. It was
+    # tested against the real dataset: "fixing" it to the dimensionally
+    # "correct" shape[1]/shape[0] rejects the actual tool edge (which sits in
+    # the upper portion of the cropped frame) and regresses detection. Left as
+    # the original, empirically working thresholds.
+    threshold_a = current_canny_image.shape[0] / 2
+    threshold_b = current_canny_image.shape[1] / 2
+
+    for x1, y1, x2, y2 in cleaned_lines:
+        is_vertical = abs(x1 - x2) < VERTICAL_LINE_MAX_DX
+        meets_position_thresholds = ((x1 > threshold_a) or (x2 > threshold_a)) and (
+            (y1 > threshold_b) or (x2 > threshold_b)
+        )
+        if not (is_vertical and meets_position_thresholds):
+            continue
+
+        # The connecting line is the same regardless of which endpoint is lowest.
+        cv2.line(image, (x1, y1), (x2, y2), color, LINE_THICKNESS)
+
+        # choose only the lowest y point of the line:
+        if y2 > y1:
+            _draw_point_label(image, (x2, y2), (x2 - 150, y2 + 40), "Y2", y2, color)
+            return y2, image
+        else:
+            _draw_point_label(image, (x1, y1), (x1 - 150, y1 + 40), "Y1", y1, color)
+            return y1, image
+
+    return None
 
 
 def get_horizontal_line_Y_index(
-    cleaned_lines, original_image_copy
+    cleaned_lines: cv2.typing.MatLike, image: cv2.typing.MatLike
 ) -> tuple[int, cv2.typing.MatLike] | None:
-    color_horizontal: tuple[int, int, int] = randomColor.color_line()
-    for line in [cleaned_lines]:
-        for x1, y1, x2, y2 in line:
-            # HORIZONTAL:
-            if abs(y1 - y2) < 10:
-                # choose only lowest y point of line:
-                if y2 > y1:
-                    y_point_of_horizontal: int = y2
-                    cv2.putText(
-                        original_image_copy,
-                        "Y2: " + str(y2),
-                        (x2 - 20, y1 - 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2,
-                        color_horizontal,
-                        3,
-                        cv2.LINE_AA,
-                    )
-                    saved_hough_image: cv2.typing.MatLike = cv2.line(
-                        original_image_copy, (x1, y1), (x2, y2), color_horizontal, 3
-                    )
-                    saved_hough_image = cv2.circle(
-                        saved_hough_image,
-                        (x2, y2),
-                        10,
-                        color_horizontal,
-                        thickness=2,
-                        lineType=8,
-                        shift=0,
-                    )
-                elif y2 == y1:
-                    y_point_of_horizontal: int = y1
-                    cv2.putText(
-                        original_image_copy,
-                        "Y2: " + str(y2),
-                        (x2 - 20, y1 - 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2,
-                        color_horizontal,
-                        3,
-                        cv2.LINE_AA,
-                    )
-                    cv2.putText(
-                        original_image_copy,
-                        "Y1: " + str(y1),
-                        (x1 + 20, y1 - 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2,
-                        color_horizontal,
-                        3,
-                        cv2.LINE_AA,
-                    )
-                    saved_hough_image: cv2.typing.MatLike = cv2.line(
-                        original_image_copy, (x1, y1), (x2, y2), color_horizontal, 3
-                    )
-                    saved_hough_image = cv2.circle(
-                        saved_hough_image,
-                        (x1, y1),
-                        10,
-                        color_horizontal,
-                        thickness=2,
-                        lineType=8,
-                        shift=0,
-                    )
-                    saved_hough_image = cv2.circle(
-                        saved_hough_image,
-                        (x2, y2),
-                        10,
-                        color_horizontal,
-                        thickness=2,
-                        lineType=8,
-                        shift=0,
-                    )
-                else:
-                    y_point_of_horizontal = y1
-                    cv2.putText(
-                        original_image_copy,
-                        "Y1: " + str(y1),
-                        (x1 + 20, y1 - 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1.2,
-                        color_horizontal,
-                        3,
-                        cv2.LINE_AA,
-                    )
-                    saved_hough_image: cv2.typing.MatLike = cv2.line(
-                        original_image_copy, (x1, y1), (x2, y2), color_horizontal, 3
-                    )
-                    saved_hough_image = cv2.circle(
-                        saved_hough_image,
-                        (x1, y1),
-                        10,
-                        color_horizontal,
-                        thickness=2,
-                        lineType=8,
-                        shift=0,
-                    )
-                return (y_point_of_horizontal, saved_hough_image)
-            pass
+    color: tuple[int, int, int] = randomColor.color_line()
+
+    for x1, y1, x2, y2 in cleaned_lines:
+        if abs(y1 - y2) >= HORIZONTAL_LINE_MAX_DY:
+            continue
+
+        # The connecting line is the same regardless of which endpoint(s) are lowest.
+        cv2.line(image, (x1, y1), (x2, y2), color, LINE_THICKNESS)
+
+        # choose only the lowest y point of the line (both, if they're equal):
+        if y2 > y1:
+            _draw_point_label(image, (x2, y2), (x2 - 20, y1 - 30), "Y2", y2, color)
+            return y2, image
+        elif y2 == y1:
+            _draw_point_label(image, (x2, y2), (x2 - 20, y1 - 30), "Y2", y2, color)
+            _draw_point_label(image, (x1, y1), (x1 + 20, y1 - 30), "Y1", y1, color)
+            return y1, image
+        else:
+            _draw_point_label(image, (x1, y1), (x1 + 20, y1 - 30), "Y1", y1, color)
+            return y1, image
+
+    return None
 
 
 def save_result_image(
     current_image_name: str, saved_hough_image: cv2.typing.MatLike, contact_length: int
 ) -> None:
-
-    # Construct output path once
     output_folder_path = os.path.join(
         folderLoop.output_hough_results_folder, current_image_name
     )
 
-    # Generate color only once
     color_contact_length = randomColor.color_line()
-
-    # Pre-format the text string
     text = f"Dist = {contact_length}px + t"
 
-    # Add text to image - no need to reassign saved_hough_image
     cv2.putText(
         saved_hough_image,
         text,
         (100, 100),
         cv2.FONT_HERSHEY_SIMPLEX,
-        1.2,
+        FONT_SCALE,
         color_contact_length,
-        3,
+        FONT_THICKNESS,
         cv2.LINE_AA,
     )
 
-    compression_params = (
-        [cv2.IMWRITE_JPEG_QUALITY, 95]
-        if output_folder_path.lower().endswith((".jpg", ".jpeg"))
-        else []
-    )
-
-    # Write image to disk
-    success = cv2.imwrite(output_folder_path, saved_hough_image, compression_params)
+    success = cv2.imwrite(output_folder_path, saved_hough_image)
 
     if success:
         logger.info(f"Saved hough image: {output_folder_path}")

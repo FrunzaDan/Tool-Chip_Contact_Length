@@ -2,12 +2,16 @@ import cv2
 import numpy as np
 from logging_config import logger
 
+CONTOUR_BLUR_KERNEL_SIZE = (9, 9)
+CONTOUR_BLUR_SIGMA = 1
+MIN_CONTOUR_ARC_LENGTH = 500
 
-def get_Contours_Function(
+
+def get_contours(
     dilation_img: cv2.typing.MatLike,
-    threshold_1: float,
-    threshold_2: float,
-    kernel_size: float,
+    canny_threshold_1: int,
+    canny_threshold_2: int,
+    canny_aperture_size: int,
 ) -> cv2.typing.MatLike:
     """Perform edge detection and contour extraction."""
 
@@ -21,7 +25,9 @@ def get_Contours_Function(
 
     try:
         # Step 1: Apply Gaussian Blur to reduce noise
-        blurred_image: cv2.typing.MatLike = cv2.GaussianBlur(dilation_img, (9, 9), 1)
+        blurred_image: cv2.typing.MatLike = cv2.GaussianBlur(
+            dilation_img, CONTOUR_BLUR_KERNEL_SIZE, CONTOUR_BLUR_SIGMA
+        )
     except cv2.error as blur_exception:
         logger.error(f"Error during GaussianBlur: {blur_exception}")
         return blank_image  # Return blank image on error
@@ -29,21 +35,21 @@ def get_Contours_Function(
     try:
         # Step 2: Apply Canny edge detection
         canny_image: cv2.typing.MatLike = cv2.Canny(
-            blurred_image, threshold_1, threshold_2, kernel_size
+            blurred_image, canny_threshold_1, canny_threshold_2, canny_aperture_size
         )
     except cv2.error as canny_exception:
         logger.error(f"Error during Canny edge detection: {canny_exception}")
         return blank_image  # Return blank image on error
 
     # Step 3: Find contours from the Canny edges
-    contours, hierarchy = cv2.findContours(
+    contours, _ = cv2.findContours(
         canny_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
     )
 
     # Step 4: Draw contours on the blank image
     for contour in contours:
         contour_length = cv2.arcLength(contour, True)
-        if contour_length > 500:  # Only draw contours that are sufficiently large
+        if contour_length > MIN_CONTOUR_ARC_LENGTH:  # Only draw sufficiently large contours
             cv2.drawContours(blank_image, [contour], -1, (255, 255, 255), 2)
 
     logger.info(f"Contours detected: {len(contours)}")

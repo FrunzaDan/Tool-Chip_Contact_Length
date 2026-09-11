@@ -20,6 +20,8 @@ See `Documentation/Diagrams/TCCL_General_Flow.jpeg` for the original flow diagra
 ## Project layout
 
 ```
+run.sh                   Convenience script: finds Python, checks/installs deps, runs the app, logs everything
+
 src/
   main.py             Entry point — starts the batch run and top-level error handling
   folderLoop.py        Iterates over the input folder, calls processImage for each .bmp file
@@ -31,17 +33,31 @@ src/
   logging_config.py     Rotating file + console logger setup
 
 Input/Complete_Dataset/   Source .bmp images (one per high-speed camera frame)
-Output/folder_hough_results/   Annotated result images (one per input image)
-Output/folder_plot_results/    6-panel diagnostic plots (one per input image)
-Logs/                      Timestamped run logs (TCCL_process_<timestamp>.log)
+Output/folder_hough_results/   Annotated result images (one per input image, .bmp)
+Output/folder_plot_results/    6-panel diagnostic plots (one per input image, always .png)
+Logs/                      Timestamped run logs: run_<timestamp>.log (from run.sh) and TCCL_process_<timestamp>.log (from the app itself)
 ```
 
 ## How to run it
 
+**Easiest: use the provided script.**
+
+```
+./run.sh
+```
+
+`run.sh` (macOS/Linux, or Windows via WSL/Git Bash) does the whole setup-and-run in one step:
+1. Locates a Python 3.10+ interpreter on `PATH` (tries `python3`, then `python`) and checks its version.
+2. Checks which packages from `requirements.txt` are already installed and installs whatever's missing.
+3. Runs `src/main.py` and logs its own steps to `Logs/run_<timestamp>.log`, in addition to the app's own per-image log.
+
+**Manual alternative:**
+
 1. Install dependencies: `pip install -r requirements.txt` (OpenCV, NumPy, Matplotlib).
 2. Put the `.bmp` frames to analyze in `Input/Complete_Dataset/`.
 3. Run `src/main.py` (working directory `src/`, as configured in `.vscode/launch.json`).
-4. Results appear in `Output/folder_hough_results/` and `Output/folder_plot_results/`; a new log file is created in `Logs/` for each run.
+
+Either way, put the `.bmp` frames to analyze in `Input/Complete_Dataset/` first. Results appear in `Output/folder_hough_results/` and `Output/folder_plot_results/` (both created automatically if missing); a new log file is created in `Logs/` for each run.
 
 ## Step-by-step pipeline
 
@@ -49,7 +65,7 @@ Each image goes through the same sequence of steps, implemented in `processImage
 
 ### 1. Read
 
-The `.bmp` file is loaded with `cv2.imread`.
+The `.bmp` file is loaded with `cv2.imread`. Since `cv2.imread` doesn't raise an error on failure — it just returns `None` for a missing/corrupt/unsupported file — that case is checked explicitly and logged as a clear "could not read image" error rather than crashing on the next step.
 
 ### 2. Resize
 
@@ -123,7 +139,7 @@ On the dilated mask:
 
 This is where the actual measurement happens.
 
-1. **Line detection** — the contour image is grayscaled, blurred, and passed through the probabilistic Hough transform (`cv2.HoughLinesP`) to get a set of candidate straight line segments.
+1. **Line detection** — the contour image is grayscaled, blurred, and passed through the probabilistic Hough transform (`cv2.HoughLinesP`) to get a set of candidate straight line segments. `HoughLinesP` returns `None` (not an empty list) when it finds no lines at all; that case is handled explicitly — the frame is skipped with a warning instead of crashing.
 2. **Line cleanup** (`clean_lines`) — lines are grouped by angle; lines whose angle is within 4.5° of an already-kept line are treated as duplicates and discarded. This collapses many overlapping detections down to a handful of distinct lines.
 
    | Hough lines (raw) | Cleaned lines |
@@ -158,12 +174,18 @@ If either the horizontal or vertical line can't be found, a warning is logged an
 
 ### 10. Diagnostic plot (`plot.py`)
 
-A 6-panel Matplotlib figure (Original / OTSU binary / morphological closing / dilation / Canny / Hough lines) is assembled and saved to `Output/folder_plot_results/<image_name>` for visual QA of the whole pipeline on that frame, then the figure is closed to free memory.
+A 6-panel Matplotlib figure (Original / OTSU binary / morphological closing / dilation / Canny / Hough lines) is assembled and saved to `Output/folder_plot_results/<image_base_name>.png` for visual QA of the whole pipeline on that frame, then the figure is closed to free memory. The output is always saved as `.png` (matching what Matplotlib actually writes), regardless of the input file's `.bmp` extension.
 
 ## Logging
 
-`logging_config.py` sets up a logger that writes to both the console and a rotating log file (`Logs/TCCL_process_<timestamp>.log`, 10 MB per file, 5 backups). Every step of the pipeline logs its progress or errors, so a full run can be audited after the fact without re-running it.
+`logging_config.py` sets up a logger that writes to both the console and a rotating log file (`Logs/TCCL_process_<timestamp>.log`, 10 MB per file, 5 backups). Every step of the pipeline logs its progress or errors, so a full run can be audited after the fact without re-running it. When the app is launched via `run.sh`, that script additionally writes its own `Logs/run_<timestamp>.log` covering the setup steps (Python/dependency checks) and a copy of the app's console output.
 
 ## Error handling philosophy
 
-Every image is processed independently: an exception at any pipeline step (read, resize, crop, threshold, morphology, contour extraction, Hough detection, or plotting) is caught, logged with context (including a traceback at the folder-loop level), and the loop moves on to the next image. A single malformed or unusual frame never aborts the whole batch.
+Every image is processed independently: an exception at any pipeline step (read, resize, crop, threshold, morphology, contour extraction, Hough detection, or plotting) is caught with a broad `except Exception` (not just OpenCV-specific errors, since real failures — e.g. a `None` image or missing lines — often surface as plain Python exceptions rather than `cv2.error`), logged with context (including a traceback at the folder-loop level), and the loop moves on to the next image. A single malformed or unusual frame never aborts the whole batch.
+
+## Cross-platform notes
+
+- All file paths are built with `os.path.join` (no hardcoded `/` or `\`), so the app runs unmodified on Windows, Linux, and macOS.
+- The `Output/folder_hough_results/` and `Output/folder_plot_results/` folders are created automatically on startup if they don't already exist.
+- Hidden/system files such as macOS's `.DS_Store` are skipped quietly (logged at info level) rather than being flagged as an unexpected non-BMP file.

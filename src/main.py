@@ -1,3 +1,4 @@
+import traceback
 import folderLoop
 from logging_config import logger
 
@@ -10,6 +11,7 @@ def main() -> None:
         folderLoop.loop_folder_function()
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
     else:
         logger.info("Folder processing completed successfully.")
     finally:

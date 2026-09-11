@@ -161,6 +161,6 @@ cython_debug/
 
 #custom for this project
 Output/folder_hough_results/*.bmp
-Output/folder_plot_results/*.bmp
+Output/folder_plot_results/*.png
 Input/
 Logs/*.log

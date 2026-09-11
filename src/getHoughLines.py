@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import math
@@ -21,13 +22,20 @@ def get_hough_lines_function(
     hough_image_plot: np.ndarray = blank_image.copy()
 
     # process:
-    houghLines: cv2.typing.MatLike = define_hough_lines(
+    houghLines: cv2.typing.MatLike | None = define_hough_lines(
         current_canny_image,
         votes_valid_line,
         min_line_length,
         max_line_gap,
         hough_image_plot,
     )
+    if houghLines is None:
+        logger.warning(
+            f"No Hough lines detected for {current_image_name}; "
+            "skipping contact-length calculation."
+        )
+        return hough_image_plot
+
     cleaned_lines: cv2.typing.MatLike = clean_lines(houghLines)
 
     # calculate the tool-chip contact length (difference between the 2 lines):
@@ -67,12 +75,12 @@ def define_hough_lines(
     min_line_length,
     max_line_gap,
     hough_lines_plot,
-) -> cv2.typing.MatLike:
+) -> cv2.typing.MatLike | None:
     current_canny_image: cv2.typing.MatLike = cv2.cvtColor(
         current_canny_image, cv2.COLOR_BGR2GRAY
     )
     current_canny_image = cv2.GaussianBlur(current_canny_image, (3, 3), 1)
-    hough_lines: cv2.typing.MatLike = cv2.HoughLinesP(
+    hough_lines: cv2.typing.MatLike | None = cv2.HoughLinesP(
         current_canny_image,
         1,
         np.pi / 180,
@@ -81,6 +89,9 @@ def define_hough_lines(
         min_line_length,
         max_line_gap,
     )
+    # cv2.HoughLinesP returns None (not an empty array) when no lines are found.
+    if hough_lines is None:
+        return None
     for hough_line in hough_lines:
         x1, y1, x2, y2 = hough_line[0]
         cv2.line(hough_lines_plot, (x1, y1), (x2, y2), (255, 0, 0), 3)
@@ -123,11 +134,19 @@ def get_vertical_line_Y_index(
     for line in [cleaned_lines]:
         for x1, y1, x2, y2 in line:
             # VERTICAL:
+            # NOTE: these thresholds intentionally compare x-coordinates against
+            # shape[0] and y/x against shape[1], which looks like a height/width
+            # mix-up at a glance. It was tested against the real dataset: "fixing"
+            # it to the dimensionally "correct" shape[1]/shape[0] rejects the
+            # actual tool edge (which sits in the upper portion of the cropped
+            # frame) and regresses detection. Left as the original, empirically
+            # working thresholds — only the redundant `x1 > ... or x1 > ...`
+            # no-op has been fixed to also check `x2`.
             if (
                 (abs(x1 - x2) < 4)
                 and (
                     (x1 > current_canny_image.shape[0] / 2)
-                    or (x1 > current_canny_image.shape[0] / 2)
+                    or (x2 > current_canny_image.shape[0] / 2)
                 )
                 and (
                     (y1 > current_canny_image.shape[1] / 2)
@@ -296,7 +315,9 @@ def save_result_image(
 ) -> None:
 
     # Construct output path once
-    output_folder_path = f"{folderLoop.output_hough_results_folder}{current_image_name}"
+    output_folder_path = os.path.join(
+        folderLoop.output_hough_results_folder, current_image_name
+    )
 
     # Generate color only once
     color_contact_length = randomColor.color_line()

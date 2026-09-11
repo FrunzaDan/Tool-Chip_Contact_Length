@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import folderLoop
 from matplotlib import pyplot as plt
@@ -53,9 +54,12 @@ def save_entire_process_plot(
     fig.tight_layout(rect=[0, 0, 1, 0.95])
 
     try:
-        # Construct output path once
-        output_folder_path = (
-            f"{folderLoop.output_plot_results_folder}{current_image_name}"
+        # Construct output path once. The figure is always saved as PNG, so the
+        # output filename must use a .png extension regardless of the input
+        # image's original extension (e.g. .bmp) to avoid a mismatched-format file.
+        image_base_name, _ = os.path.splitext(current_image_name)
+        output_folder_path = os.path.join(
+            folderLoop.output_plot_results_folder, f"{image_base_name}.png"
         )
 
         # Save with optimized parameters for speed

@@ -3,17 +3,22 @@ import traceback
 import processImage
 from logging_config import logger
 
-# Define folder paths
-# input_dataset_folder = os.path.join("Input", "Complete_Dataset")
+# Define folder paths. os.path.join is used throughout (no hardcoded "/" or "\")
+# so these paths are valid on Windows, Linux, and macOS alike.
 input_dataset_folder = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "Input", "Complete_Dataset"
 )
 output_hough_results_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "Output", "folder_hough_results/"
+    os.path.dirname(os.path.abspath(__file__)), "..", "Output", "folder_hough_results"
 )
 output_plot_results_folder = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "Output", "folder_plot_results/"
+    os.path.dirname(os.path.abspath(__file__)), "..", "Output", "folder_plot_results"
 )
+
+# Ensure the output folders exist regardless of platform, so a fresh checkout
+# (or one where they were deleted) doesn't fail on the first save.
+os.makedirs(output_hough_results_folder, exist_ok=True)
+os.makedirs(output_plot_results_folder, exist_ok=True)
 
 
 def loop_folder_function() -> None:
@@ -27,6 +32,12 @@ def loop_folder_function() -> None:
         # Skip directories and non-BMP files
         if os.path.isdir(current_image_path):
             logger.info(f"Skipping directory: {current_image_name}")
+            continue
+
+        # Skip hidden/system files such as macOS's .DS_Store, without logging
+        # them as an unexpected/warning-worthy non-BMP file.
+        if current_image_name.startswith("."):
+            logger.info(f"Skipping hidden/system file: {current_image_name}")
             continue
 
         if current_image_name.endswith(".bmp"):

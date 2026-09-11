@@ -4,9 +4,16 @@ import processImage
 from logging_config import logger
 
 # Define folder paths
-input_dataset_folder = os.path.join("Input", "Complete_Dataset")
-output_hough_results_folder = os.path.join("Output", "folder_hough_results/")
-output_plot_results_folder = os.path.join("Output", "folder_plot_results/")
+# input_dataset_folder = os.path.join("Input", "Complete_Dataset")
+input_dataset_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "Input", "Complete_Dataset"
+)
+output_hough_results_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "Output", "folder_hough_results/"
+)
+output_plot_results_folder = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "Output", "folder_plot_results/"
+)
 
 
 def loop_folder_function() -> None:

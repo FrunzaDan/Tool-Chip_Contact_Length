@@ -4,7 +4,7 @@
     {
       "label": "Install Python Dependencies",
       "type": "shell",
-      "command": "pip3 install -r ${workspaceFolder}/requirements.txt",
+      "command": "source .venv/bin/activate && pip3 install -r ${workspaceFolder}/requirements.txt",
       "group": "build",
       "detail": "Installs Python packages from requirements.txt",
       "presentation": {
@@ -18,7 +18,7 @@
     {
       "label": "Clean Python Project",
       "type": "shell",
-      "command": "echo 'Cleaning up...' && rm -rf ${workspaceFolder}/.pytest_cache",
+      "command": "source .venv/bin/activate && echo 'Cleaning up...' && rm -rf ${workspaceFolder}/.pytest_cache",
       "group": "none",
       "detail": "Removes test cache and other temporary files",
       "presentation": {
@@ -30,7 +30,7 @@
     {
       "label": "Format with Black",
       "type": "shell",
-      "command": "black ${workspaceFolder}/src",
+      "command": "source .venv/bin/activate && black ${workspaceFolder}/src",
       "group": "build",
       "detail": "Formats Python code in /src with Black",
       "presentation": {

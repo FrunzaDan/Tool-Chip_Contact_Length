@@ -21,6 +21,7 @@ See `Documentation/Diagrams/TCCL_General_Flow.jpeg` for the original flow diagra
 
 ```
 run.sh                   Convenience script: finds Python, checks/installs deps, runs the app, logs everything
+pyproject.toml            PEP 621 dependency manifest (OpenCV, NumPy) — no build-system, since the app runs as scripts, not an installed package
 
 src/
   main.py             Entry point — starts the batch run and top-level error handling
@@ -47,13 +48,13 @@ Logs/                      Timestamped run logs: run_<timestamp>.log (from run.s
 ```
 
 `run.sh` (macOS/Linux, or Windows via WSL/Git Bash) does the whole setup-and-run in one step:
-1. Locates a Python 3.10+ interpreter on `PATH` (tries `python3`, then `python`) and checks its version.
-2. Checks which packages from `requirements.txt` are already installed and installs whatever's missing.
-3. Runs `src/main.py` and logs its own steps to `Logs/run_<timestamp>.log`, in addition to the app's own per-image log.
+1. Locates a Python 3.11+ interpreter on `PATH` (tries `python3`, then `python`) and checks its version. 3.11+ is required so the script can parse `pyproject.toml` with the standard-library `tomllib` module — no extra dependency needed just to read the dependency list.
+2. Checks which packages declared in `pyproject.toml`'s `[project.dependencies]` are already installed (reporting each one's exact installed version and location) and installs whatever's missing.
+3. Runs `src/main.py` and logs its own steps — plus a final summary of images processed, results produced, and how long it took — to `Logs/run_<timestamp>.log`, in addition to the app's own per-image log.
 
 **Manual alternative:**
 
-1. Install dependencies: `pip install -r requirements.txt` (OpenCV, NumPy, Matplotlib).
+1. Install dependencies: `pip install opencv-python numpy` (as declared in `pyproject.toml`).
 2. Put the `.bmp` frames to analyze in `Input/Complete_Dataset/`.
 3. Run `src/main.py` (working directory `src/`, as configured in `.vscode/launch.json`).
 
@@ -174,7 +175,9 @@ If either the horizontal or vertical line can't be found, a warning is logged an
 
 ### 10. Diagnostic plot (`plot.py`)
 
-A 6-panel Matplotlib figure (Original / OTSU binary / morphological closing / dilation / Canny / Hough lines) is assembled and saved to `Output/folder_plot_results/<image_base_name>.png` for visual QA of the whole pipeline on that frame, then the figure is closed to free memory. The output is always saved as `.png` (matching what Matplotlib actually writes), regardless of the input file's `.bmp` extension.
+A 6-panel diagnostic grid (Original / OTSU binary / morphological closing / dilation / Canny / Hough lines) is assembled and saved to `Output/folder_plot_results/<image_base_name>.png` for visual QA of the whole pipeline on that frame.
+
+The grid is composited directly with OpenCV (resize-to-fit + tile + `cv2.putText` titles) rather than Matplotlib: profiling showed Matplotlib's `savefig()` alone accounted for ~94% of total per-image processing time, since this is plain image tiling with plain titles, not an actual data plot. The OpenCV version produces the same 6-panel layout (each panel's aspect ratio preserved via letterboxing) in roughly a quarter of the time — around a 3-4x speedup for the whole pipeline in practice.
 
 ## Logging
 

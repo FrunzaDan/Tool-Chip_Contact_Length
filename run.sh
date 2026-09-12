@@ -4,7 +4,7 @@
 #
 # What it does, in order:
 #   1. Locates a usable Python 3 interpreter (and checks its version).
-#   2. Checks which packages from requirements.txt are already installed,
+#   2. Checks which packages declared in pyproject.toml are already installed,
 #      and installs whatever is missing.
 #   3. Runs the app (src/main.py) and logs everything to Logs/.
 #
@@ -16,7 +16,7 @@ set -eu
 # Setup: resolve paths so the script works from any working directory.
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
+PYPROJECT_FILE="$SCRIPT_DIR/pyproject.toml"
 LOG_DIR="$SCRIPT_DIR/Logs"
 mkdir -p "$LOG_DIR"
 RUN_LOG="$LOG_DIR/run_$(date +%Y-%m-%d_%H-%M-%S).log"
@@ -48,7 +48,7 @@ log "===== TCCL run script started ====="
 # Step 1: Find and validate a Python interpreter.
 # ---------------------------------------------------------------------------
 MIN_PYTHON_MAJOR=3
-MIN_PYTHON_MINOR=10
+MIN_PYTHON_MINOR=11  # 3.11+ needed for the standard-library 'tomllib' TOML parser
 
 PYTHON_BIN=""
 for candidate in python3 python; do
@@ -92,33 +92,24 @@ log "pip: $PIP_VERSION_OUTPUT"
 log "------------------------"
 
 # ---------------------------------------------------------------------------
-# Step 2: Check installed dependencies against requirements.txt, install
-# whatever is missing.
+# Step 2: Check installed dependencies against pyproject.toml's
+# [project.dependencies], install whatever is missing.
 # ---------------------------------------------------------------------------
-if [ ! -f "$REQUIREMENTS_FILE" ]; then
-    log "ERROR: requirements.txt not found at $REQUIREMENTS_FILE"
+if [ ! -f "$PYPROJECT_FILE" ]; then
+    log "ERROR: pyproject.toml not found at $PYPROJECT_FILE"
     exit 1
 fi
 
-log "Checking dependencies from requirements.txt..."
-missing_packages=()
+log "Checking dependencies from pyproject.toml..."
+missing_requirements=()
 satisfied_count=0
 total_count=0
 
+# Read the declared dependency specs (e.g. "numpy" or "numpy>=1.20") out of
+# pyproject.toml's [project.dependencies] using the standard-library TOML
+# parser - one per line, so the rest of this script can stay plain bash.
 while IFS= read -r line || [ -n "$line" ]; do
-    # Strip inline comments, then leading/trailing whitespace.
-    line="${line%%#*}"
-    line="$(printf '%s' "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
     [ -z "$line" ] && continue
-
-    # Skip pip options (-e, -r, --hash=...) and direct URL/VCS requirements;
-    # this script only checks plain "package[==version]" style entries.
-    case "$line" in
-        -*|http://*|https://*|git+*)
-            log "  [SKIP]    Not a plain package requirement, skipping check: $line"
-            continue
-            ;;
-    esac
 
     # Extract the bare package name (before any version specifier / extras /
     # environment marker).
@@ -134,17 +125,24 @@ while IFS= read -r line || [ -n "$line" ]; do
         satisfied_count=$((satisfied_count + 1))
     else
         log "  [MISSING] $pkg_name  requirement='$line'  (not installed)"
-        missing_packages+=("$pkg_name")
+        missing_requirements+=("$line")
     fi
-done < "$REQUIREMENTS_FILE"
+done < <("$PYTHON_BIN" -c "
+import tomllib
+with open('$PYPROJECT_FILE', 'rb') as f:
+    data = tomllib.load(f)
+for dependency in data.get('project', {}).get('dependencies', []):
+    print(dependency)
+")
 
 log "Dependency check complete: $satisfied_count/$total_count requirement(s) already satisfied."
 
-if [ ${#missing_packages[@]} -gt 0 ]; then
-    log "Installing missing dependencies (${missing_packages[*]}) from requirements.txt..."
-    if "$PYTHON_BIN" -m pip install -r "$REQUIREMENTS_FILE" >>"$RUN_LOG" 2>&1; then
+if [ ${#missing_requirements[@]} -gt 0 ]; then
+    log "Installing missing dependencies (${missing_requirements[*]}) from pyproject.toml..."
+    if "$PYTHON_BIN" -m pip install "${missing_requirements[@]}" >>"$RUN_LOG" 2>&1; then
         log "Dependencies installed successfully. Versions now installed:"
-        for pkg_name in "${missing_packages[@]}"; do
+        for requirement in "${missing_requirements[@]}"; do
+            pkg_name="$(printf '%s' "$requirement" | sed -E 's/[<>=!~;\[].*$//' | sed -e 's/[[:space:]]*$//')"
             installed_version="$("$PYTHON_BIN" -m pip show "$pkg_name" 2>/dev/null | awk -F': ' '/^Version:/ {print $2}')"
             log "  [INSTALLED] $pkg_name ($installed_version)"
         done
@@ -159,6 +157,7 @@ fi
 # ---------------------------------------------------------------------------
 # Step 3: Run the application.
 # ---------------------------------------------------------------------------
+log "--------------------"
 log "Starting the Tool-Chip Contact Length application..."
 log "(Detailed per-image processing logs are written by the app itself to $LOG_DIR/TCCL_process_*.log)"
 

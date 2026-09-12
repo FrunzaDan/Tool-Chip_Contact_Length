@@ -4,9 +4,9 @@
     {
       "label": "Install Python Dependencies",
       "type": "shell",
-      "command": "source .venv/bin/activate && pip3 install -r ${workspaceFolder}/requirements.txt",
+      "command": "source .venv/bin/activate && pip3 install $(python3 -c \"import tomllib, shlex; deps = tomllib.load(open('${workspaceFolder}/pyproject.toml', 'rb'))['project']['dependencies']; print(' '.join(shlex.quote(d) for d in deps))\")",
       "group": "build",
-      "detail": "Installs Python packages from requirements.txt",
+      "detail": "Installs Python packages declared in pyproject.toml",
       "presentation": {
         "echo": true,
         "reveal": "always",

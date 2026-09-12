@@ -1,0 +1,17 @@
+# This project runs as scripts (see run.sh / src/main.py), not as an
+# installed package, so no [build-system] table is declared here - this file
+# exists purely as a PEP 621 dependency manifest, replacing requirements.txt.
+
+[project]
+name = "tool-chip-contact-length"
+version = "0.1.0"
+description = "Computer-vision pipeline that measures Tool-Chip Contact Length from high-speed camera images."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python",
+    "numpy",
+]
+
+[project.urls]
+Repository = "https://github.com/FrunzaDan/Tool-Chip_Contact_Length"

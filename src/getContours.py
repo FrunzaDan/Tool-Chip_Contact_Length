@@ -16,9 +16,7 @@ def get_contours(
     """Perform edge detection and contour extraction."""
 
     if dilation_img is None:
-        logger.error("No valid Dilation Image provided.")
-        # Return an empty image in case of error
-        return np.zeros((1, 1, 3), dtype=np.uint8)
+        raise ValueError("No valid Dilation Image provided.")
 
     # Initialize blank image for drawing contours
     blank_image = np.zeros((dilation_img.shape[0], dilation_img.shape[1], 3), np.uint8)

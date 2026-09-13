@@ -15,3 +15,10 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/FrunzaDan/Tool-Chip_Contact_Length"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

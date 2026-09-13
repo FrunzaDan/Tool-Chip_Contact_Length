@@ -70,6 +70,13 @@ def get_hough_lines_function(
 
             contact_length: int = y_point_of_horizontal - y_point_of_vertical
 
+            if contact_length <= 0:
+                logger.warning(
+                    f"{current_image_name}: computed contact length is "
+                    f"non-positive ({contact_length}px) - likely horizontal/"
+                    "vertical line misclassification, result is suspect."
+                )
+
             save_result_image(current_image_name, annotated_image, contact_length)
 
     except cv2.error as error:

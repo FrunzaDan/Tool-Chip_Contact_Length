@@ -10,25 +10,13 @@ Things known to be incomplete, fragile, or empirically-hacky, kept here so futur
 
 `src/getHoughLines.py`, `get_vertical_line_Y_index` — `threshold_a` (half the image *height*) is compared against x-coordinates, and `threshold_b` (half the *width*) is compared against a mix of `y1` and `x2` (not a consistent `y1`/`y2` pair). The in-code comment says this was tested deliberately: swapping to the dimensionally "correct" pairing rejects the real tool edge and regresses detection on the actual dataset. It works, but the geometric criterion it's actually encoding has never been re-derived — worth revisiting with a principled position filter (e.g. bounding-box based) rather than reusing a magic pair of `shape[0]/2`, `shape[1]/2` thresholds. See [[line_detection_and_measurement]].
 
-## No automated tests
+## Automated tests cover unit logic only, not the full pipeline
 
-No `tests/` directory or test framework anywhere in the repo. There's no way to catch a pipeline regression (e.g. from a parameter change, see [[pipeline_parameters]]) other than eyeballing the diagnostic plots in `Output/folder_plot_results/` for a full dataset run.
+`tests/` (pytest, run via `python3 -m pytest`, config in `pyproject.toml`) covers the pure/deterministic pieces: line classification and cleanup in `getHoughLines.py`, contour extraction in `getContours.py`, the per-step helpers and `_run_step` in `processImage.py`, and `randomColor.color_line`. There's still no test that exercises `folderLoop.loop_folder_function` or `main.py` end-to-end against a real (or fixture) image, and no CI wiring to run the suite automatically — a pipeline regression from a parameter change (see [[pipeline_parameters]]) can still only be caught by eyeballing `Output/folder_plot_results/` for a full dataset run, or by extending the unit tests to the case in question.
 
 ## Pipeline parameters are tuned to one dataset/camera setup
 
 Every threshold in [[pipeline_parameters]] (resize width, OTSU range, morphology kernels, Hough thresholds, angle/position tolerances) was tuned against the single dataset in `Input/Complete_Dataset/`. Nothing is measured or derived from the image itself (e.g. relative to detected object size), so a different camera, lens, or lighting setup would likely require re-tuning most of these by hand, with no documented process for how the current values were chosen.
-
-## No sanity check on the computed contact length
-
-`contact_length = y_point_of_horizontal - y_point_of_vertical` (`src/getHoughLines.py`) is written straight to the output image with no bounds/sign check. If line classification picks the "wrong" horizontal/vertical line on a noisy frame, a negative or implausibly large value is saved and looks like a normal result — there's no automatic way to flag it as suspect during a batch run.
-
-## `get_contours` degrades to a 1x1 stub image on bad input
-
-`src/getContours.py`, `get_contours` — if `dilation_img is None`, it returns `np.zeros((1, 1, 3))`. That 1x1 image is then passed into `getHoughLines.get_hough_lines_function` as if it were a normal frame; nothing downstream expects a 1x1 image, so this path is untested and more likely to raise deeper in the pipeline than to fail at a clear, well-logged point.
-
-## `.env` support is wired but unused
-
-`.vscode/launch.json` declares `"envFile": "${workspaceFolder}/.env"`, but no `.env` (or `.env.example`) file exists and no source file reads `os.environ`. Either remove the hook or document what it's meant to configure once something actually needs it.
 
 ## No CLI arguments or config file
 

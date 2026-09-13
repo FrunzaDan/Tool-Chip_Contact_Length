@@ -74,7 +74,7 @@ The image is resized to a fixed width of 1080 px (height scaled proportionally),
 
 | Original |
 |---|
-| ![Original](Images/Original.png) |
+| ![Original](../Documentation/Images/Original.png) |
 
 ### 3. Crop (right half)
 
@@ -84,7 +84,7 @@ Only the right half of the resized image is kept. The camera frame always shows 
 
 | Cropped (half) |
 |---|
-| ![Half](Images/Half.png) |
+| ![Half](../Documentation/Images/Half.png) |
 
 ### 4. Grayscale
 
@@ -98,7 +98,7 @@ The cropped color image is converted to a single-channel grayscale image, which 
 
 | Binary |
 |---|
-| ![Binary](Images/Binary.png) |
+| ![Binary](../Documentation/Images/Binary.png) |
 
 ### 6. Morphological closing
 
@@ -108,7 +108,7 @@ A 4×4 kernel with 10 iterations of `MORPH_CLOSE` closes small dark gaps/holes i
 
 | Noise reduction (closing) |
 |---|
-| ![Noise_Reduction](Images/Noise_Reduction.png) |
+| ![Noise_Reduction](../Documentation/Images/Noise_Reduction.png) |
 
 ### 7. Dilation
 
@@ -118,7 +118,7 @@ A 3×3 kernel with 8 iterations of `cv2.dilate` grows the white regions further,
 
 | Dilation |
 |---|
-| ![Dilation](Images/Dilation.png) |
+| ![Dilation](../Documentation/Images/Dilation.png) |
 
 ### 8. Contours / Canny edges (`getContours.py`)
 
@@ -132,7 +132,7 @@ On the dilated mask:
 
 | Canny / contours |
 |---|
-| ![Canny](Images/Canny.png) |
+| ![Canny](../Documentation/Images/Canny.png) |
 
 ### 9. Hough line detection (`getHoughLines.py`)
 
@@ -145,7 +145,7 @@ This is where the actual measurement happens.
 
    | Hough lines (raw) | Cleaned lines |
    |---|---|
-   | ![Hough_Lines](Images/Hough_Lines.png) | ![Cleaned_Lines](Images/Cleaned_Lines.png) |
+   | ![Hough_Lines](../Documentation/Images/Hough_Lines.png) | ![Cleaned_Lines](../Documentation/Images/Cleaned_Lines.png) |
 
 3. **Classification** — from the cleaned lines, the code looks for:
    - A **horizontal** line (`get_horizontal_line_Y_index`): near-flat (`|y1 - y2| < 10`), representing the visible top of the workpiece/chip edge.
@@ -163,13 +163,13 @@ This is where the actual measurement happens.
 
    | Geometry (blueprint) |
    |---|
-   | ![Blueprint](Images/Blueprint.png) |
+   | ![Blueprint](../Documentation/Images/Blueprint.png) |
 
 5. **Result image** — the two lines and their labeled points are drawn on the cropped original image, along with a `Dist = <n>px` text annotation, and saved to `Output/folder_hough_results/<image_name>`.
 
    | Overlay result |
    |---|
-   | ![Overlay](Images/Overlay.png) |
+   | ![Overlay](../Documentation/Images/Overlay.png) |
 
 If either the horizontal or vertical line can't be found, a warning is logged and no result image is saved for that frame.
 
@@ -192,3 +192,12 @@ Every image is processed independently: an exception at any pipeline step (read,
 - All file paths are built with `os.path.join` (no hardcoded `/` or `\`), so the app runs unmodified on Windows, Linux, and macOS.
 - The `Output/folder_hough_results/` and `Output/folder_plot_results/` folders are created automatically on startup if they don't already exist.
 - Hidden/system files such as macOS's `.DS_Store` are skipped quietly (logged at info level) rather than being flagged as an unexpected non-BMP file.
+
+## Documented Concepts
+
+Deeper dives into specific parts of the system, kept as separate files per `learning_approach.md`:
+
+- [line_detection_and_measurement.md](line_detection_and_measurement.md) — Hough line detection, cleanup/classification, and the contact-length calculation
+- [pipeline_parameters.md](pipeline_parameters.md) — every tunable constant across the pipeline, gathered in one place
+- [dev_environment.md](dev_environment.md) — how `run.sh`, `pyproject.toml`, and the VS Code config fit together
+- [known_gaps.md](known_gaps.md) — known bugs, empirically-hacky code, and missing pieces (tests, config, etc.) for future work

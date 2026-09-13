@@ -5,4 +5,4 @@ The general flow of this image processing software is the following:
 
 ![General_Flow](https://github.com/FrunzaDan/Tool-Chip_Contact_Length/blob/main/Documentation/Diagrams/TCCL_General_Flow.jpeg)
 
-More details will be explained in the PDF documentation, which is in progress.
+Run it with `./run.sh`. See [ai_docs/index.md](ai_docs/index.md) for full documentation: project layout, the step-by-step image-processing pipeline, and manual run instructions.
